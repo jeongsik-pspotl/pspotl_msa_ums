@@ -5,26 +5,31 @@ networks:
     driver: bridge
 
 services:
-  rabbitmq:
-    image: rabbitmq:3.12-management
-    container_name: biztalk-rabbitmq
+  # 1. MariaDB (영구 데이터 저장소)
+  mariadb:
+    build:
+      context: ./infra/mariadb
+      dockerfile: Dockerfile
+    container_name: biztalk-mariadb
     ports:
-      - "5672:5672"    # AMQP
-      - "15672:15672"  # Management UI
-      - "15692:15692"  # Prometheus Metrics
+      - "3307:3307"
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ums_db
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./infra/mariadb/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - biztalk-net
 
+  # 2. Redis (멱등성 검증 및 Rate Limiting)
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: biztalk-redis
     ports:
       - "6379:6379"
@@ -36,6 +41,26 @@ services:
     networks:
       - biztalk-net
 
+  # 3. RabbitMQ (메시지 브로커 / EDA 파이프라인)
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: biztalk-rabbitmq
+    ports:
+      - "5672:5672"     # AMQP Protocol
+      - "15672:15672"   # Management UI
+      - "15692:15692"   # Prometheus Metrics
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - biztalk-net
+
+  # 4. Mock Server (외부 연동 시뮬레이션)
   biztalk-mockserver:
     build:
       context: .
@@ -48,6 +73,7 @@ services:
     networks:
       - biztalk-net
 
+  # 5. Producer API 모듈
   biztalk-api:
     build:
       context: .
@@ -56,9 +82,16 @@ services:
     ports:
       - "8080:8080"
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/ums_db?useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_REDIS_HOST=redis
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
     depends_on:
+      mariadb:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       redis:
@@ -66,6 +99,7 @@ services:
     networks:
       - biztalk-net
 
+  # 6. Consumer Engine 모듈
   biztalk-engine:
     build:
       context: .
@@ -74,10 +108,17 @@ services:
     ports:
       - "8081:8081"
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/ums_db?useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_REDIS_HOST=redis
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
       - MOCK_SERVER_URL=http://biztalk-mockserver:8085
     depends_on:
+      mariadb:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       redis:
@@ -87,23 +128,5 @@ services:
     networks:
       - biztalk-net
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: biztalk-prometheus
-    restart: always
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - biztalk-net
-
-  grafana:
-    image: grafana/grafana
-    container_name: biztalk-grafana
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
-    networks:
-      - biztalk-net
+volumes:
+  mariadb_data:

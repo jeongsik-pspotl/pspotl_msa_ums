@@ -44,6 +44,9 @@ project(':biztalk-core') {
         api 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
         api 'org.springframework.boot:spring-boot-starter-webflux'
         api 'io.projectreactor.rabbitmq:reactor-rabbitmq:1.5.6'
+
+        // 테스트 의존성
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
     }
 }
 
