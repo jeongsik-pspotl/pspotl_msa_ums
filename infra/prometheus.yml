@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s      # 지표를 수집할 기본 주기 (15초)
+  evaluation_interval: 15s  # 알림 규칙(Alert Rule) 평가 주기
+
+scrape_configs:
+  - job_name: 'biztalk-api'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8080']
+
+  - job_name: 'biztalk-engine'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8081']
+
+  - job_name: 'biztalk-webhook'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8082']
+
+  - job_name: 'biztalk-retry'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8083']
+
+  - job_name: 'biztalk-mockserver'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8085']

@@ -1,0 +1,14 @@
+server:
+  port: 8085
+  tomcat:
+    threads:
+      max: 500
+      min-spare: 50
+
+spring:
+  application:
+    name: biztalk-mockserver
+
+logging:
+  level:
+    com.biztalk.mockserver: INFO

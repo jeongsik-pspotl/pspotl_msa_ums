@@ -1,0 +1,48 @@
+server:
+  port: 8080
+  tomcat:
+    threads:
+      max: 500
+      min-spare: 50
+    accept-count: 1000
+
+spring:
+  application:
+    name: biztalk-api
+  profiles:
+    include: core
+
+  # 대용량 비동기 메시지 처리 및 Thread Pool 확장
+  task:
+    execution:
+      pool:
+        core-size: 50
+        max-size: 200
+        queue-capacity: 10000
+
+  # RabbitMQ 고가용성 및 Reliability 설정
+  rabbitmq:
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        concurrency: 20
+        max-concurrency: 50
+
+  # Deserialization Trust 설정 (SPRING_AMQP_DESERIALIZATION_TRUST_ALL=true 환경변수 대체 가능)
+  amqp:
+    deserialization:
+      trust:
+        all: true
+
+# Monitoring & Metrics Exposure
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}

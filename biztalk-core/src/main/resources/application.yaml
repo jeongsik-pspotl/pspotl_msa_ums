@@ -1,0 +1,40 @@
+spring:
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: guest
+    password: guest
+    cache:
+      connection:
+        mode: connection # channel 대신 connection 모드 검토
+        size: 20        # Connection Pool 확장
+      channel:
+        size: 100       # Channel Pool 확장
+    listener:
+      simple:
+        missing-queues-fatal: false # ?? ??? ?? ???? ?? ?? ?? ??
+        auto-startup: true
+        acknowledge-mode: auto
+        prefetch: 250
+        retry:
+          enabled: false
+    publisher-confirm-type: correlated # 또는 none (성능 우선)
+    publisher-returns: false
+    template:
+      mandatory: false
+  amqp:
+    deserialization:
+      trust:
+        all: true  # ?? ??? ???? SPRING_AMQP_DESERIALIZATION_TRUST_ALL=true
+
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:redis}
+      port: ${SPRING_REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 100
+          max-idle: 50
+          min-idle: 10
+          max-wait: 100ms

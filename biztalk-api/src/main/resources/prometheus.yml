@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s      # 지표를 수집할 기본 주기 (15초)
+  evaluation_interval: 15s  # 알림 규칙(Alert Rule) 평가 주기
+
+scrape_configs:
+  # 1. Prometheus 자체 모니터링 (선택 사항)
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 2. Spring Boot API 서비스 지표 수집
+  - job_name: 'api-service'
+    metrics_path: '/actuator/prometheus' # Spring Actuator 엔드포인트
+    scrape_interval: 10s                 # 필요시 서비스별 수집 주기 개별 설정
+    static_configs:
+      - targets: ['localhost:8080'] # API 서비스 IP/도메인:포트
+        labels:
+          env: 'production'
+          service: 'api'
+
+  # 3. Spring Boot Engine 서비스 지표 수집
+  - job_name: 'engine-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['localhost:8081'] # Engine 서비스 IP/도메인:포트
+        labels:
+          env: 'production'
+          service: 'engine'

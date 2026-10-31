@@ -1,0 +1,15 @@
+rootProject.name = 'biztalk-system'
+
+include 'biztalk-core'
+include 'biztalk-api'
+include 'biztalk-engine'
+include 'biztalk-webhook'
+include 'biztalk-retry'
+include 'biztalk-mockserver'
+include 'biztalk-core'
+include 'biztalk-api'
+include 'biztalk-engine'
+include 'biztalk-webhook'
+include 'biztalk-retry'
+include 'biztalk-mockserver'
+

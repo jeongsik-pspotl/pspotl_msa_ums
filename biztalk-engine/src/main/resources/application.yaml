@@ -1,0 +1,46 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: biztalk-engine
+  profiles:
+    include: core
+  amqp:
+    deserialization:
+      trust:
+        all: true  # ?? ??? ???? SPRING_AMQP_DESERIALIZATION_TRUST_ALL=true
+
+mock:
+  server:
+    url: ${MOCK_SERVER_URL:http://localhost:8085}
+
+resilience4j:
+  ratelimiter:
+    instances:
+      alimtalkLimiter:
+        limitForPeriod: 1000
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
+      pushLimiter:
+        limitForPeriod: 3000
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
+  circuitbreaker:
+    instances:
+      externalVendor:
+        slidingWindowSize: 100
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics
+
+logging:
+  config: classpath:logback-spring.xml
+  level:
+    root: INFO
+    org.example.pspotl: DEBUG

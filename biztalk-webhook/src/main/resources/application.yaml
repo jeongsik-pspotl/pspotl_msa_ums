@@ -1,0 +1,14 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: biztalk-webhook
+  profiles:
+    include: core
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus

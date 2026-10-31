@@ -1,0 +1,22 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: biztalk-retry
+  profiles:
+    include: core
+  amqp:
+    deserialization:
+      trust:
+        all: true  # ?? ??? ???? SPRING_AMQP_DESERIALIZATION_TRUST_ALL=true
+
+retry:
+  max-attempts: 3
+  backoff-ms: 1000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
