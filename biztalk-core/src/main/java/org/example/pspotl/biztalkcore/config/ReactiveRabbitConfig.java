@@ -7,10 +7,6 @@ import com.rabbitmq.client.ConnectionFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-import reactor.rabbitmq.Receiver;
-import reactor.rabbitmq.ReceiverOptions;
 
 @Configuration
 public class ReactiveRabbitConfig {
@@ -38,17 +34,17 @@ public class ReactiveRabbitConfig {
         return connectionFactory;
     }
 
-    @Bean
-    public Receiver receiver(ConnectionFactory connectionFactory) {
-        // Connection 생성을 비동기 Mono로 감싸고 백그라운드 스케줄러 할당
-        Mono<Connection> connectionMono = Mono.fromCallable(() -> connectionFactory.newConnection("reactive-receiver"))
-                .subscribeOn(Schedulers.boundedElastic())
-                .cache(); // Connection 재활용
-
-        // [수정] maxInMemoryFetchBatchSize 제거 후 connectionMono만 설정
-        ReceiverOptions options = new ReceiverOptions()
-                .connectionMono(connectionMono);
-
-        return new Receiver(options);
-    }
+//    @Bean
+//    public Receiver receiver(ConnectionFactory connectionFactory) {
+//        // Connection 생성을 비동기 Mono로 감싸고 백그라운드 스케줄러 할당
+//        Mono<Connection> connectionMono = Mono.fromCallable(() -> connectionFactory.newConnection("reactive-receiver"))
+//                .subscribeOn(Schedulers.boundedElastic())
+//                .cache(); // Connection 재활용
+//
+//        // [수정] maxInMemoryFetchBatchSize 제거 후 connectionMono만 설정
+//        ReceiverOptions options = new ReceiverOptions()
+//                .connectionMono(connectionMono);
+//
+//        return new Receiver(options);
+//    }
 }
