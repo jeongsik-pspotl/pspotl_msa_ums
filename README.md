@@ -1,146 +1,66 @@
-# 🚀 대용량 MSA 통합 메시징 플랫폼 (pspotl_msa_ums)
+# biztalk-system
 
-> **High-Performance Event-Driven Microservices Architecture for Massive Messaging Pipelines**  
-> 초당 5,000+ TPS 대용량 알림 메시지(알림톡, 카톡, SMS, LMS)를 무중단 및 데이터 유실 0%로 처리하기 위한 분산 백엔드 플랫폼 프로젝트입니다.
-
----
-
-## 📌 1. 프로젝트 개요 및 핵심 목표
-
-본 프로젝트는 초당 5,000 TPS 이상의 가변 트래픽 유입 환경에서 메시지 유실 없는 **At-least-once 배달 보장**, **Redis 기반 멱등성(Idempotency) 검증**, **RabbitMQ 기반 비동기 EDA(Event-Driven Architecture)**, 그리고 **Kubernetes 클라우드 네이티브 오케스트레이션**을 검증하기 위해 구축되었습니다.
-
-### 🔑 Key Engineering Points
-* **Event-Driven Architecture (EDA)**: RabbitMQ 메시지 큐를 통한 Producer-Consumer 완벽 디커플링 및 Peak 트래픽 버퍼링
-* **High Concurrency & Idempotency**: Redis Atomic `SETNX` 연산을 활용한 1ms 미만의 중복 발송 원천 차단
-* **Rate Limiting & Throttling**: Resilience4j 및 Redis 기반 채널별(알림톡, SMS 등) 초당 5,000 TPS 제한
-* **Fault Tolerance & Reliability**: Manual ACK, Quorum Queue, Exponential Backoff 기반 Retry 및 DLQ(Dead Letter Queue) 격리
-* **Cloud Native Orchestration**: Docker Compose(1차 로컬 검증) 및 Minikube Kubernetes(2차 최종 오케스트레이션 검증) 이원화 배포
+**Kafka vs RabbitMQ 메시지 큐 비교·검증용 UMS (Alimtalk, PUSH, SMS, LMS) 프로토타입**
 
 ---
 
-## 🏗️ 2. 시스템 아키텍처 및 모듈 구성
+## 1. 프로젝트 개요 (Project Overview)
+- **목표:** 대용량 UMS(알림톡, PUSH, SMS, LMS) 워크로드 환경에서 **Kafka vs RabbitMQ**의 처리 성능, 멱등성 제어, 스로틀링 및 장애 격리 동작을 비교·검증하는 프로토타입 구축
+- **개발 방식:** macOS + JetBrains IDE 환경에서 Gemini API 기반 AI 에이전트 자동화 활용 (주 5일, 일 1시간 단위 점진적 개발)
+- **패키지 표준:** `com.biztalk.*` 단일 루트 패키지 체계 적용
 
-```text
-[ Client / Postman ]
-         │
-         ▼ (HTTP POST)
-┌────────────────────────────────────────────────────────┐
-│ 1. biztalk-api (Producer & Gateway)                    │
-│  - Request Validation & Fast Response                  │
-│  - Redis SETNX Idempotency Key Check                   │
-└──────────────────────────┬─────────────────────────────┘
-                           │ (AMQP Publisher Confirms)
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│ 2. RabbitMQ Cluster (Message Broker)                  │
-│  - Quorum Queues / DLX (Dead Letter Exchange)          │
-└──────────────────────────┬─────────────────────────────┘
-                           │ (Manual ACK)
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│ 3. biztalk-engine (Consumer Workers)                   │
-│  - RateLimiter (Max 5,000 TPS) & Channel Dispatcher    │
-└──────────────────────────┬─────────────────────────────┘
-                           │ (REST / HTTP)
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│ 4. biztalk-mockserver & biztalk-webhook / retry        │
-│  - External Vendor Simulation / DLQ Retry Pipeline     │
-└────────────────────────┘
-```
-
-### 📦 모듈별 역할
-* **`ums-common`**: 공통 DTO, 예외 처리, JPA Entity 및 Redis/RabbitMQ 설정
-* **`biztalk-api`**: 발송 요청 접수, 유효성 검증, 멱등성 검사 및 MQ 메시지 발행
-* **`biztalk-engine`**: MQ 소비(Consumer), Throttling 제어, 채널별 Dispatcher 처리
-* **`biztalk-webhook`**: 통신사/중계사 API 연동 모킹 및 비동기 결과 콜백 처리
-* **`biztalk-retry`**: 실패 메시지 지연 재시도 및 최종 DLQ 격리 워커
-* **`biztalk-mockserver`**: 외부 연동 테스트용 시뮬레이터
+### 기술 스택 (Tech Stack)
+- **Language & Framework:** Java 17+, Spring Boot 3.2.x
+- **Messaging & Cache:** Spring Kafka, Spring AMQP (비교 기준선), Spring Data Redis (`SETNX` / TTL 멱등성)
+- **Resilience & Observability:** Resilience4j (`RateLimiter`, `CircuitBreaker`), Prometheus, Grafana
+- **Infra:** Docker Compose, Minikube (Kubernetes)
 
 ---
 
-## 🛠️ 3. 기술 스택 (Tech Stack)
+## 2. 멀티 모듈 구조 (Multi-Module Architecture)
 
-* **Backend**: Java 17, Spring Boot 3.2.5, Spring Data JPA, Spring Security
-* **Database & Caching**: MariaDB 10.11 (Primary-Replica), Redis 7 (Alpine)
-* **Messaging & EDA**: RabbitMQ 3.12 (Management / Quorum Queues)
-* **Container & Infrastructure**: Docker, Docker Compose, Kubernetes (Minikube), Helm, ArgoCD
-* **Testing & Monitoring**: JUnit 5, Mockito, k6, Prometheus, Grafana
-
----
-
-## 🗓️ 4. WBS 및 진행 단계 (Work Breakdown Structure)
-
-| 단계 | 기간 | 주요 과제 | 검증 환경 | 진행 상태 |
-| :---: | :---: | :--- | :---: | :---: |
-| **Day 1** | 1일차 | **인프라 환경 구성**: MariaDB Dockerfile 작성, 통합 `docker-compose.yml` 및 네트워크 세팅 | Docker Compose | **[완료]** |
-| **Day 2** | 2일차 | **API 모듈 TDD 및 Redis 멱등성**: Request Validation, Redis `SETNX` 기반 중복 차단 로직 구현 | Docker Compose | **[완료]** |
-| **Day 3** | 3일차 | **Engine & MQ 연동**: RabbitMQ Topology(Queue, Exchange, DLX) 구성 및 Consumer 구현 | Docker Compose | **[완료]** |
-| **Day 4** | 4일차 | **Webhook & Retry 파이프라인**: 실패 건 백오피스 재시도 및 최종 DLQ 격리 구현 | Docker Compose | **[완료]** |
-| **Day 5** | 5일차 | **1차 통합 검증 (Docker Compose)**: `run-with-test.sh` 활용 E2E 및 Smoke Test 통과 | Docker Compose | **[완료]** |
-| **Day 6** | 6일차 | **2차 오케스트레이션 이관 (Minikube)**: K8s Manifests (Deployment, Service, PVC, HPA) 적용 | Minikube (K8s) | **[완료]** |
-| **Day 7** | 7일차 | **최종 모니터링 & 부하 검증**: k6 5,000 TPS 부하주입 및 Prometheus/Grafana 지표 수집 | Minikube (K8s) | **[완료]** |
+| 모듈명 | 기본 패키지 | 포트 | 주요 역할 |
+| :--- | :--- | :---: | :--- |
+| **`biztalk-core`** | `com.biztalk.core.*` | - | 공통 도메인 DTO (`BizTalkMessage`, `ChannelType`), 상수 및 공통 메시징 설정 |
+| **`biztalk-api`** | `com.biztalk.api.*` | `8080` | REST API Gateway / Producer (`POST /api/v1/messages/send`), 요청 검증 및 메시지 발행 |
+| **`biztalk-engine`** | `com.biztalk.engine.*` | `8081` | 메시지 Consumer 워커, Redis 멱등성 검증(`SETNX`/TTL), Resilience4j 제어, Mock 벤더 발송 |
+| **`biztalk-webhook`** | `com.biztalk.webhook.*` | `8082` | 외부 벤더 비동기 발송 결과 콜백(성공/실패 사유) 수신 REST 엔드포인트 |
+| **`biztalk-retry`** | `com.biztalk.retry.*` | `8083` | 지연 재발행(Backoff / Retry Topic 또는 DLQ) 및 최종 실패 격리 처리 |
+| **`biztalk-mockserver`** | `com.biztalk.mockserver.*` | `8085` | 외부 발송 벤더(Alimtalk / APNs / FCM / SMS) 응답(`200 OK`, `429`, `500`, 지연 주입) 시뮬레이션 |
 
 ---
 
-## ⚡ 5. Quick Start & 검증 가이드
+## 3. WBS 진행 현황 (Work Breakdown Structure)
 
-### 1차 검증: Docker Compose 기반 (로컬 검증)
+> **기준일:** 2026년 11월 28일 (토)  
+> **현재 상태:** **3일차 진행 중 일시 중단** (Gemini 3 Flash 무료 티어 API 비율 제한 도달 및 `com.biztalk.*` 잔여 패키지 정리 단계)
 
-프로젝트 루트 디렉토리에서 작성된 통합 자동화 스크립트를 실행합니다.
-
-```bash
-# 실행 권한 부여
-chmod +x run-with-test.sh
-
-# 테스트, 빌드, Docker Compose 기동 및 E2E Smoke Test 일괄 수행
-./run-with-test.sh
-```
-
-#### 접속 엔드포인트:
-* **Producer API**: `http://localhost:8080/api/v1/messages/send`
-* **Engine Consumer**: `http://localhost:8081/actuator/health`
-* **RabbitMQ Management**: `http://localhost:15672` (guest / guest)
-* **Mock Server**: `http://localhost:8085`
+| 일차 | 구분 | 주요 작업 내용 | 상태 | 비고 / 산출물 |
+| :--- | :--- | :--- | :---: | :--- |
+| **1일차 (월)** | **환경 & 규칙 세팅** | • GitHub 저장소 초기화 및 Gradle 멀티 모듈 구조 정의<br>• macOS + JetBrains + Gemini API 에이전트 연동<br>• `AGENT_GUIDE.md` 작성 및 초기 커밋 | **완료** | `AGENT_GUIDE.md` 기준선 수립 |
+| **2일차 (화)** | **모듈 골격 & 빌드 정비** | • 6개 모듈 기본 설정(`build.gradle`, `application.yml`, 메인 클래스) 구성<br>• `java-library` / `api()` 의존성 및 `biztalk-engine` 빌드 이슈 해결<br>• `.gitignore` 반영 및 2일차 기준점 커밋 | **완료** | 6개 모듈 컴파일 통과 및 커밋 완료 |
+| **3일차 (수)** | **핵심 도메인 & MQ 구현** | • `org.example.pspotl.*` 등 잔여 비표준 패키지 정리 (`com.biztalk.*` 통일)<br>• `biztalk-mockserver` 채널별 발송 응답 시뮬레이션 구현<br>• `biztalk-core` / `biztalk-api` 메시지 발행 구현<br>• `biztalk-engine` Consumer, Redis 멱등성(`SETNX`/TTL), Resilience4j 적용 | **진행 중 (중단)** | API 한도(`RPM 6/5`, `RPD 23/20`) 초과로 대기 중 |
+| **4일차 (목)** | **재시도 · 웹훅 · 비교** | • `biztalk-retry` 지연 재발행 / DLT 격리 파이프라인 구현<br>• `biztalk-webhook` 발송 결과 콜백 처리 구현<br>• Kafka vs RabbitMQ 동작 및 처리 특성 비교 정리 | **예정** | 3일차 커밋 이후 순차 진행 |
+| **5일차 (금)** | **인프라 · 검증 · 마무리** | • Docker Compose 및 Minikube 매니페스트 정비<br>• Prometheus / Grafana 메트릭 연동 및 부하·장애 시나리오 점검<br>• 최종 문서화 및 코드 정리 | **예정** | 최종 검증 및 문서 완결 |
 
 ---
 
-### 2차 검증: Minikube (Kubernetes) 오케스트레이션 검증
+## 4. 중단 시점 스냅샷 & 재개 가이드
 
-```bash
-# 1. Minikube 기동
-minikube start --driver=docker
+### 현재 중단 사유 및 확인 사항
+1. **API 비율 제한 도달:** `gemini-3-flash-preview` 모델의 분당/일일 요청 한도(`5 RPM`, `250K TPM`, `20 RPD`) 초과로 일시 중단되었습니다. (일일 한도는 매일 오후 5시 KST 전후 초기화)
+2. **패키지 표준 반영 완료:** 일부 모듈에 남아 있던 `org.example.pspotl.*` 계열 잔여 패키지와 충돌하지 않도록 `AGENT_GUIDE.md`에 **`com.biztalk.*` 단일 패키지 표준 및 레거시 패키지 정리 규칙**을 추가했습니다.
 
-# 2. Minikube Docker 데몬 연동
-eval $(minikube docker-env)
-
-# 3. K8s Manifest 배포
-kubectl apply -f k8s/
-
-# 4. Pod 상태 및 HPA 확인
-kubectl get pods -w
-kubectl get hpa
-```
+### 한도 초기화 후 작업 재개 순서
+1. **[3일차 - 사전 정리]** 6개 모듈 `src/main/java` 내 `org.example.*` 등 비표준 패키지를 `com.biztalk.<모듈명>` 기준으로 통일
+2. **[3일차 - 1단계]** `biztalk-mockserver` (`com.biztalk.mockserver.*`) 발송 시뮬레이션 컨트롤러/서비스 구현
+3. **[3일차 - 2단계]** `biztalk-core` 공통 상수 및 `biztalk-api` (`POST /api/v1/messages/send`) 발행 로직 구현
+4. **[3일차 - 3단계]** `biztalk-engine` Consumer, Redis `SETNX`/TTL 멱등성, Resilience4j(`RateLimiter`/`CircuitBreaker`) 구현
+5. **[3일차 - 4단계]** `./gradlew compileJava` 최소 확인(최대 1~2회) 후 3일차 커밋으로 기준점 고정
 
 ---
 
-## 📈 6. 부하 테스트 및 모니터링 (k6 & Grafana)
-
-k6를 활용하여 초당 5,000 TPS 대용량 부하 주입 시 시스템의 안정성 및 Throttling 제어 여부를 측정하였습니다.
-
-```bash
-# k6 부하 테스트 실행
-k6 run k6/script.js
-```
-
-* **Target Throughput**: 5,000 TPS
-* **Max Latency**: < 50ms (Redis Idempotency Check)
-* **Data Integrity**: 트래픽 폭주 시에도 RabbitMQ 큐 버퍼링으로 손실률 0% 달성
-
----
-
-## 📝 7. 이력서 및 포트폴리오 어필 성과 (Impact)
-
-* **대용량 트래픽 수용**: 초당 5,000 TPS 이상의 메시징 유입 시에도 메시지 중복 발송 0건 및 무중단 처리 달성
-* **분산 인프라 이중화**: MariaDB Master-Slave 분산 라우팅 및 Redis SETNX 멱등성 체계 완비
-* **클라우드 네이티브 오케스트레이션**: Docker Compose 기반 1차 로컬 검증부터 Minikube K8s 오케스트레이션까지의 Full-Cycle CI/CD 및 인프라 자동화 구축
+## 5. AI 에이전트 운용 원칙 (`AGENT_GUIDE.md` 요약)
+- **범위 제한:** 한 번에 1~2개 모듈 또는 1개 책임 단위로 분할 요청하여 `429`/`503` 오류 및 중복 탐색 방지
+- **명령 Budget:** `./gradlew` 빌드 명령은 명시된 검증 턴에서만 최대 1~2회 실행
+- **패키지 규약:** 모든 신규 및 수정 코드는 `com.biztalk.*` 하위 패키지만 사용

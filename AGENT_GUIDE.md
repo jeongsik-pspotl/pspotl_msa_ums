@@ -7,7 +7,7 @@
 - **실행 제약 조건:** macOS + JetBrains IDE 환경에서 Gemini API 무료 티어를 활용해 하루 1시간 단위로 개발을 진행합니다. 일일/분당 요청 한도(`429`) 초과를 방지하기 위해 불필요한 파일 전체 스캔, 중복 명령어 실행, 무한 재시도 루프를 최소화해야 합니다.
 
 ## 2. 저장소 구조 및 패키지 기준 (Target Multi-Module & Package Structure)
-- **기본 루트 패키지 (Base Package Standard):** 모든 Java 소스는 **`com.biztalk.*`** 하위 패키지를 기본 기준으로 사용합니다. 기존 `com.biztalk.*` 소스 또는 설정과 충돌하는 임의의 루트 패키지(예: `com.example.*`, `com.ums.*` 등)를 생성하거나 혼합하지 않습니다.
+- **단일 패키지 표준 (Strict Package Standard):** 프로젝트의 모든 Java 코드는 **`com.biztalk.*`** 하위 패키지만 사용합니다. **`org.example.*` (예: `org.example.pspotl.*`)**, `com.example.*`, `com.ums.*` 등 다른 루트 패키지를 생성하거나 혼합하지 않으며, 발견 시 대상 모듈 범위 내에서 `com.biztalk.*`로 정합성을 맞춥니다.
 - **모듈별 패키지 매핑 (Module-to-Package Mapping):**
     - **Root (`biztalk-system`):** Gradle 멀티 모듈 루트 (`settings.gradle`, `build.gradle`)
     - **`biztalk-core` (`com.biztalk.core.*`):** 공통 DTO (`BizTalkMessage`, `ChannelType` 등), 공통 상수/유틸리티, 공통 메시징 설정 (`com.biztalk.core.domain`, `com.biztalk.core.config` 등)
@@ -19,9 +19,9 @@
     - **`infra` / `k8s`:** Docker Compose, Minikube/Kubernetes YAML 매니페스트, Prometheus & Grafana 설정 및 실행 스크립트
 
 ## 3. 에이전트 엄수 작업 규칙 (Strict Working Rules)
-1. **패키지 및 소스 기준 준수 (Package & Source Alignment):** 코드 생성·수정 및 탐색 시 반드시 `com.biztalk.*` 패키지 체계를 따릅니다. 대상 모듈의 기존 `src/main/java/com/biztalk/...` 경로와 `package` 선언을 먼저 확인해 기존 클래스와 패키지/임포트가 충돌하지 않게 맞춥니다.
+1. **패키지 및 잔여 패키지 정리 (Package Alignment & Legacy Cleanup):** 코드 생성·수정 및 탐색 시 반드시 `com.biztalk.*` 패키지 체계를 따릅니다. 대상 모듈 내에 `org.example.*` 등 불일치 패키지가 보이면 해당 모듈 내에서만 `com.biztalk.<모듈명>...` 디렉토리/패키지 기준으로 정리하고 중복 잔여 파일을 제거해 충돌을 없앱니다.
 2. **작업 범위 준수 (Scope Discipline):** 프롬프트에서 명시적으로 요청한 파일만 생성하거나 수정합니다. 별도 요청이 없는 한 관련 없는 모듈이나 기존 파일을 임의로 리팩토링하지 않습니다.
-3. **저토큰 탐색 (Low-Token Exploration):** 대상 모듈의 `src/main/java/com/biztalk` 하위 디렉토리와 직접 관련된 파일만 우선 확인합니다. 방대한 로그를 한꺼번에 출력하거나 전체 저장소를 반복 스캔하지 않습니다.
+3. **저토큰 탐색 (Low-Token Exploration):** 대상 모듈의 `src/main/java` 하위 디렉토리와 직접 관련된 파일만 우선 확인합니다. 방대한 로그를 한꺼번에 출력하거나 전체 저장소를 반복 스캔하지 않습니다.
 4. **명령어 실행 제한 (Command Budget):** 빌드 및 테스트 명령어(`./gradlew ...`)는 프롬프트에 명시된 경우에만 실행하며(턴당 최대 1~2회 제한), 출력은 실패 및 에러 원인 파악에 필요한 핵심 내용만 확인합니다.
 5. **환각 의존성 금지 (No Hallucinated Dependencies):** Java 17+ 환경과 호환되는 표준 Spring Boot 3.2.x / Spring Kafka / Spring Data Redis / Resilience4j 규약 및 의존성만 사용합니다.
 6. **커밋 친화적 산출물 (Commit-Friendly Output):** 하루 1시간 작업 블록 내에 검토하고 커밋할 수 있도록 코드를 간결하고 컴파일 가능한 모듈 단위로 유지합니다.
